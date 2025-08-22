@@ -40,7 +40,7 @@ const Login = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-foreground">MediCalc Voice</h1>
-          <p className="text-muted-foreground">Calculadora médica con reconocimiento de voz</p>
+          <p className="text-muted-foreground">Calculadora médica inteligente con reconocimiento de voz</p>
         </div>
 
         {/* Login Form */}
