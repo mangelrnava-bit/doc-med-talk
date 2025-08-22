@@ -35,30 +35,47 @@ const Calculator = () => {
       return;
     }
 
-    const { result, error } = parseVoiceCommand(command);
-    
-    if (error) {
+    try {
+      const { result, error } = parseVoiceCommand(command);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive"
+        });
+        speak(error);
+        return;
+      }
+      
+      if (result) {
+        setCurrentResult(result);
+        setShowFormula(false);
+        
+        const response = `El resultado es ${result.result} ${result.unit}. ¿Quieres ver el cálculo y la fórmula?`;
+        speak(response);
+        setWaitingForResponse(true);
+        
+        // Keep listening for the response
+        setTimeout(() => {
+          if (!isListening) {
+            setIsListening(true);
+          }
+        }, 3000); // Wait 3 seconds then start listening again
+        
+        toast({
+          title: "Cálculo completado",
+          description: `${result.result} ${result.unit}`,
+        });
+      }
+    } catch (error) {
+      const errorMessage = "Error en el cálculo. Por favor, verifica los valores ingresados.";
       toast({
-        title: "Error",
-        description: error,
+        title: "Error de cálculo",
+        description: errorMessage,
         variant: "destructive"
       });
-      speak(error);
-      return;
-    }
-    
-    if (result) {
-      setCurrentResult(result);
-      setShowFormula(false);
-      
-      const response = `El resultado es ${result.result} ${result.unit}. ¿Quieres ver el cálculo y la fórmula?`;
-      speak(response);
-      setWaitingForResponse(true);
-      
-      toast({
-        title: "Cálculo completado",
-        description: `${result.result} ${result.unit}`,
-      });
+      speak(errorMessage);
     }
   };
 

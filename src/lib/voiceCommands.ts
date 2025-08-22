@@ -47,7 +47,7 @@ export const parseVoiceCommand = (command: string): { result: CalculationResult 
       const gender = extractGender(cmd);
       
       if (!height) {
-        return { result: null, error: 'No pude entender la altura. Por favor, especifica la altura en metros.' };
+        return { result: null, error: 'No pude entender la altura. Por favor, especifica la altura.' };
       }
       
       if (!gender) {
@@ -63,7 +63,7 @@ export const parseVoiceCommand = (command: string): { result: CalculationResult 
       const gender = extractGender(cmd);
       
       if (!height || !gender) {
-        return { result: null, error: 'Necesito la altura en metros y el género (hombre o mujer).' };
+        return { result: null, error: 'Necesito la altura y el género (hombre o mujer).' };
       }
       
       return { result: calculatePredictedWeight(height, gender) };

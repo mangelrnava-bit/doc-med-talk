@@ -10,7 +10,15 @@ export interface CalculationResult {
 
 // Peso ideal (Fórmula de Robinson)
 export const calculateIdealWeight = (height: number, gender: 'hombre' | 'mujer'): CalculationResult => {
-  const heightInCm = height * 100; // Convert meters to cm
+  // Convertir a metros si está en centímetros
+  let heightInM = height > 3 ? height / 100 : height;
+  
+  // Validación de altura realista
+  if (heightInM < 1.0 || heightInM > 2.5) {
+    throw new Error('La altura debe estar entre 1.0 y 2.5 metros');
+  }
+  
+  const heightInCm = heightInM * 100;
   let idealWeight: number;
   
   if (gender === 'hombre') {
@@ -19,20 +27,54 @@ export const calculateIdealWeight = (height: number, gender: 'hombre' | 'mujer')
     idealWeight = 49 + 1.7 * ((heightInCm - 152.4) / 2.54);
   }
   
+  // Validación de peso realista
+  if (idealWeight > 150) {
+    throw new Error('Resultado poco realista. Verifica la altura ingresada.');
+  }
+  
   return {
     result: Math.round(idealWeight * 10) / 10,
     unit: 'kg',
     formula: gender === 'hombre' 
       ? 'Peso ideal (hombre) = 52 + 1.9 × ((altura en cm - 152.4) / 2.54)'
       : 'Peso ideal (mujer) = 49 + 1.7 × ((altura en cm - 152.4) / 2.54)',
-    explanation: `Para ${gender} de ${height}m: ${idealWeight.toFixed(1)} kg`,
+    explanation: `Para ${gender} de ${heightInM}m: ${idealWeight.toFixed(1)} kg`,
     interpretation: 'Fórmula de Robinson para peso corporal ideal'
   };
 };
 
-// Peso predicho (IBW - Ideal Body Weight)
+// Peso predicho (PBW - Predicted Body Weight)
 export const calculatePredictedWeight = (height: number, gender: 'hombre' | 'mujer'): CalculationResult => {
-  return calculateIdealWeight(height, gender);
+  // Convertir a centímetros si está en metros
+  let heightInCm = height > 3 ? height : height * 100;
+  
+  // Validación de altura realista
+  if (heightInCm < 100 || heightInCm > 250) {
+    throw new Error('La altura debe estar entre 100 y 250 centímetros');
+  }
+  
+  let predictedWeight: number;
+  
+  if (gender === 'hombre') {
+    predictedWeight = 50 + 2.3 * ((heightInCm - 152.4) / 2.54);
+  } else {
+    predictedWeight = 45.5 + 2.3 * ((heightInCm - 152.4) / 2.54);
+  }
+  
+  // Validación de peso realista
+  if (predictedWeight > 150) {
+    throw new Error('Resultado poco realista. Verifica la altura ingresada.');
+  }
+  
+  return {
+    result: Math.round(predictedWeight * 10) / 10,
+    unit: 'kg',
+    formula: gender === 'hombre' 
+      ? 'Peso predicho (hombre) = 50 + 2.3 × ((altura en cm - 152.4) / 2.54)'
+      : 'Peso predicho (mujer) = 45.5 + 2.3 × ((altura en cm - 152.4) / 2.54)',
+    explanation: `Para ${gender} de ${heightInCm}cm: ${predictedWeight.toFixed(1)} kg`,
+    interpretation: 'Peso corporal predicho para ventilación mecánica'
+  };
 };
 
 // Fórmula de Winter para CO2 esperado en acidosis metabólica
