@@ -6,6 +6,7 @@ import {
   calculateEffectiveOsmolarity,
   calculateRespiratoryRate,
   calculateGFRCKDEPI,
+  calculateAnionGap,
   CalculationResult
 } from './medicalCalculators';
 
@@ -135,9 +136,24 @@ export const parseVoiceCommand = (command: string): { result: CalculationResult 
       return { result: calculateGFRCKDEPI(creatinine, age, gender) };
     }
     
+    // Anion Gap
+    if (cmd.includes('anion gap') || cmd.includes('brecha aniónica')) {
+      const numbers = cmd.match(/\d+(?:[.,]\d+)?/g);
+      
+      if (!numbers || numbers.length < 3) {
+        return { result: null, error: 'Necesito los valores de sodio, cloro y bicarbonato. Ejemplo: "anion gap sodio 140 cloro 100 bicarbonato 24".' };
+      }
+      
+      const sodium = parseFloat(numbers[0].replace(',', '.'));
+      const chloride = parseFloat(numbers[1].replace(',', '.'));
+      const bicarbonate = parseFloat(numbers[2].replace(',', '.'));
+      
+      return { result: calculateAnionGap(sodium, chloride, bicarbonate) };
+    }
+    
     return { 
       result: null, 
-      error: 'No reconocí el comando. Puedo calcular: peso ideal, peso predicho, fórmula de Winter, CO2 para alcalosis metabólica, osmolaridad efectiva, frecuencia respiratoria, y filtrado glomerular CKD-EPI.' 
+      error: 'No reconocí el comando. Puedo calcular: peso ideal, peso predicho, fórmula de Winter, CO2 para alcalosis metabólica, osmolaridad efectiva, frecuencia respiratoria, filtrado glomerular CKD-EPI, y anion gap.' 
     };
     
   } catch (error) {

@@ -52,7 +52,9 @@ const Calculator = () => {
         setCurrentResult(result);
         setShowFormula(false);
         
-        const response = `El resultado es ${result.result} ${result.unit}. ¿Quieres ver el cálculo y la fórmula?`;
+        // Improve pronunciation of units
+        const unitPronunciation = result.unit === 'mmHg' ? 'milímetros de mercurio' : result.unit;
+        const response = `El resultado es ${result.result} ${unitPronunciation}. ¿Quieres ver el cálculo y la fórmula?`;
         speak(response, { 
           onEnd: () => {
             setWaitingForResponse(true);
@@ -237,11 +239,19 @@ const Calculator = () => {
               </div>
               
               <div className="space-y-2">
+                <h4 className="font-semibold text-medical-blue">Electrolitos:</h4>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li>• Anion gap</li>
+                </ul>
+              </div>
+              
+              <div className="space-y-2">
                 <h4 className="font-semibold text-medical-blue">Ejemplos de uso:</h4>
                 <ul className="space-y-1 text-muted-foreground text-xs">
                   <li>• "Peso ideal hombre 1.74 metros"</li>
                   <li>• "Winter bicarbonato 15"</li>
                   <li>• "TFG creatinina 1.2 edad 65 mujer"</li>
+                  <li>• "Anion gap sodio 140 cloro 100 bicarbonato 24"</li>
                 </ul>
               </div>
             </div>

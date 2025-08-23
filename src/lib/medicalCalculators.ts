@@ -167,3 +167,37 @@ export const calculateGFRCKDEPI = (creatinine: number, age: number, gender: 'hom
     interpretation: gfr >= 90 ? 'Normal' : gfr >= 60 ? 'Leve disminución' : gfr >= 30 ? 'Moderada disminución' : 'Severa disminución'
   };
 };
+
+// Anion Gap calculation
+export const calculateAnionGap = (sodium: number, chloride: number, bicarbonate: number): CalculationResult => {
+  if (sodium < 120 || sodium > 160) {
+    throw new Error('El sodio debe estar entre 120 y 160 mEq/L');
+  }
+  
+  if (chloride < 80 || chloride > 120) {
+    throw new Error('El cloro debe estar entre 80 y 120 mEq/L');
+  }
+  
+  if (bicarbonate < 5 || bicarbonate > 35) {
+    throw new Error('El bicarbonato debe estar entre 5 y 35 mEq/L');
+  }
+  
+  const anionGap = sodium - (chloride + bicarbonate);
+  
+  let interpretation = '';
+  if (anionGap < 8) {
+    interpretation = 'Anion gap bajo';
+  } else if (anionGap >= 8 && anionGap <= 12) {
+    interpretation = 'Anion gap normal';
+  } else {
+    interpretation = 'Anion gap elevado';
+  }
+  
+  return {
+    result: Math.round(anionGap * 10) / 10,
+    unit: 'mEq/L',
+    formula: 'Anion Gap = Na⁺ - (Cl⁻ + HCO₃⁻)',
+    explanation: `Anion Gap = ${sodium} - (${chloride} + ${bicarbonate}) = ${anionGap.toFixed(1)} mEq/L`,
+    interpretation
+  };
+};
