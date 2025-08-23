@@ -37,7 +37,7 @@ export const useSpeechSynthesis = (options: UseSpeechSynthesisOptions = {}) => {
     }
   }, []);
 
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, options?: { onEnd?: () => void }) => {
     if (!isSupported) {
       console.warn('Speech synthesis not supported');
       return;
@@ -62,8 +62,18 @@ export const useSpeechSynthesis = (options: UseSpeechSynthesisOptions = {}) => {
     }
 
     utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      if (options?.onEnd) {
+        options.onEnd();
+      }
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      if (options?.onEnd) {
+        options.onEnd();
+      }
+    };
 
     speechSynthesis.speak(utterance);
   }, [isSupported, voices, lang, rate, pitch, volume]);

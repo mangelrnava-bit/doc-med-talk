@@ -7,9 +7,10 @@ interface VoiceButtonProps {
   onCommand: (command: string) => void;
   isListening: boolean;
   onListeningChange: (listening: boolean) => void;
+  isSpeaking?: boolean;
 }
 
-const VoiceButton = ({ onCommand, isListening, onListeningChange }: VoiceButtonProps) => {
+const VoiceButton = ({ onCommand, isListening, onListeningChange, isSpeaking = false }: VoiceButtonProps) => {
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -40,17 +41,44 @@ const VoiceButton = ({ onCommand, isListening, onListeningChange }: VoiceButtonP
     }
   }, [onCommand, onListeningChange]);
 
+  // Auto-start/stop recognition based on isListening prop and isSpeaking state
+  useEffect(() => {
+    if (!recognitionRef.current || isSpeaking) return;
+
+    if (isListening) {
+      try {
+        recognitionRef.current.start();
+      } catch (error) {
+        console.log('Recognition already active or failed to start');
+      }
+    } else {
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.log('Recognition already stopped or failed to stop');
+      }
+    }
+  }, [isListening, isSpeaking]);
+
   const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      recognitionRef.current.start();
-      onListeningChange(true);
+    if (recognitionRef.current && !isListening && !isSpeaking) {
+      try {
+        recognitionRef.current.start();
+        onListeningChange(true);
+      } catch (error) {
+        console.log('Failed to start recognition:', error);
+      }
     }
   };
 
   const stopListening = () => {
     if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-      onListeningChange(false);
+      try {
+        recognitionRef.current.stop();
+        onListeningChange(false);
+      } catch (error) {
+        console.log('Failed to stop recognition:', error);
+      }
     }
   };
 

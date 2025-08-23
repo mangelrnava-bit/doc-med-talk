@@ -53,15 +53,12 @@ const Calculator = () => {
         setShowFormula(false);
         
         const response = `El resultado es ${result.result} ${result.unit}. ¿Quieres ver el cálculo y la fórmula?`;
-        speak(response);
-        setWaitingForResponse(true);
-        
-        // Keep listening for the response
-        setTimeout(() => {
-          if (!isListening) {
+        speak(response, { 
+          onEnd: () => {
+            setWaitingForResponse(true);
             setIsListening(true);
           }
-        }, 3000); // Wait 3 seconds then start listening again
+        });
         
         toast({
           title: "Cálculo completado",
@@ -133,6 +130,7 @@ const Calculator = () => {
               onCommand={handleVoiceCommand}
               isListening={isListening}
               onListeningChange={setIsListening}
+              isSpeaking={isSpeaking}
             />
             
             {waitingForResponse && (
