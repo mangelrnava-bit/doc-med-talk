@@ -21,25 +21,76 @@ const VoiceButton = ({ onCommand, isListening, onListeningChange, isSpeaking = f
       recognitionRef.current = new SpeechRecognition();
       
       const recognition = recognitionRef.current;
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.lang = 'es-ES';
 
+      let silenceTimer: NodeJS.Timeout;
+      let lastResult = '';
+
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript.toLowerCase();
-        onCommand(transcript);
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        // Clear existing silence timer
+        clearTimeout(silenceTimer);
+
+        // If we have a final result, process it
+        if (finalTranscript && finalTranscript !== lastResult) {
+          lastResult = finalTranscript;
+          onCommand(finalTranscript.toLowerCase());
+          
+          // Set a longer timeout for continuous listening (8 seconds)
+          silenceTimer = setTimeout(() => {
+            if (recognitionRef.current && isListening) {
+              try {
+                recognitionRef.current.stop();
+              } catch (e) {
+                console.log('Recognition already stopped');
+              }
+            }
+          }, 8000);
+        } else if (interimTranscript) {
+          // Reset silence timer for interim results (user is still speaking)
+          silenceTimer = setTimeout(() => {
+            if (recognitionRef.current && isListening) {
+              try {
+                recognitionRef.current.stop();
+              } catch (e) {
+                console.log('Recognition already stopped');
+              }
+            }
+          }, 8000);
+        }
       };
 
       recognition.onend = () => {
+        clearTimeout(silenceTimer);
         onListeningChange(false);
       };
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        onListeningChange(false);
+        clearTimeout(silenceTimer);
+        if (event.error !== 'no-speech') {
+          onListeningChange(false);
+        }
+      };
+
+      return () => {
+        clearTimeout(silenceTimer);
       };
     }
-  }, [onCommand, onListeningChange]);
+  }, [onCommand, onListeningChange, isListening]);
 
   // Auto-start/stop recognition based on isListening prop and isSpeaking state
   useEffect(() => {

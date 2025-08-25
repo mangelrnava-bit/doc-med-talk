@@ -9,11 +9,19 @@ import { CalculationResult } from "@/lib/medicalCalculators";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
+interface PartialCommand {
+  type: string;
+  params: Record<string, any>;
+  requiredParams: string[];
+}
+
 const Calculator = () => {
   const [isListening, setIsListening] = useState(false);
   const [currentResult, setCurrentResult] = useState<CalculationResult | null>(null);
   const [showFormula, setShowFormula] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
+  const [partialCommand, setPartialCommand] = useState<PartialCommand | null>(null);
+  const [collectingInfo, setCollectingInfo] = useState(false);
   const { speak, isSpeaking } = useSpeechSynthesis();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,7 +44,7 @@ const Calculator = () => {
     }
 
     try {
-      const { result, error } = parseVoiceCommand(command);
+      const { result, error, needsMoreInfo } = parseVoiceCommand(command, partialCommand || undefined);
       
       if (error) {
         toast({
@@ -45,12 +53,39 @@ const Calculator = () => {
           variant: "destructive"
         });
         speak(error);
+        setPartialCommand(null);
+        setCollectingInfo(false);
+        return;
+      }
+      
+      if (needsMoreInfo) {
+        // Guardar el estado del comando parcial
+        setPartialCommand({
+          type: needsMoreInfo.calculationType,
+          params: needsMoreInfo.collectedParams,
+          requiredParams: needsMoreInfo.missingParams
+        });
+        setCollectingInfo(true);
+        
+        // Hablar el prompt y continuar escuchando
+        speak(needsMoreInfo.prompt, {
+          onEnd: () => {
+            setIsListening(true);
+          }
+        });
+        
+        toast({
+          title: "Información adicional",
+          description: needsMoreInfo.prompt,
+        });
         return;
       }
       
       if (result) {
         setCurrentResult(result);
         setShowFormula(false);
+        setPartialCommand(null);
+        setCollectingInfo(false);
         
         // Improve pronunciation of units
         const unitPronunciation = result.unit === 'mmHg' ? 'milímetros de mercurio' : result.unit;
@@ -75,6 +110,8 @@ const Calculator = () => {
         variant: "destructive"
       });
       speak(errorMessage);
+      setPartialCommand(null);
+      setCollectingInfo(false);
     }
   };
 
@@ -82,7 +119,23 @@ const Calculator = () => {
     setCurrentResult(null);
     setShowFormula(false);
     setWaitingForResponse(false);
+    setPartialCommand(null);
+    setCollectingInfo(false);
     speak("¿Qué cálculo médico necesitas realizar?");
+  };
+
+  const getCalculationDisplayName = (type: string): string => {
+    const names: Record<string, string> = {
+      pesoIdeal: 'Peso Ideal',
+      pesoPredicho: 'Peso Predicho',
+      winter: 'Fórmula de Winter',
+      co2Alcalosis: 'CO2 en Alcalosis Metabólica',
+      osmolaridad: 'Osmolaridad Efectiva',
+      frecuenciaRespiratoria: 'Frecuencia Respiratoria',
+      tfg: 'Filtrado Glomerular (TFG)',
+      brechaAnionica: 'Brecha Aniónica'
+    };
+    return names[type] || type;
   };
 
   const handleLogout = () => {
@@ -139,6 +192,17 @@ const Calculator = () => {
               <div className="bg-muted rounded-lg p-4 text-center max-w-md">
                 <p className="text-sm text-muted-foreground">
                   Esperando tu respuesta... Di "sí" o "no"
+                </p>
+              </div>
+            )}
+            
+            {collectingInfo && partialCommand && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center max-w-md">
+                <p className="text-sm text-blue-600 font-medium mb-2">
+                  Recolectando información para: {getCalculationDisplayName(partialCommand.type)}
+                </p>
+                <p className="text-xs text-blue-500">
+                  Esperando valores... Tómate tu tiempo para dictar cada valor.
                 </p>
               </div>
             )}
