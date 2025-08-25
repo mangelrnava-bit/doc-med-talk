@@ -22,12 +22,64 @@ const Calculator = () => {
   const [waitingForResponse, setWaitingForResponse] = useState(false);
   const [partialCommand, setPartialCommand] = useState<PartialCommand | null>(null);
   const [collectingInfo, setCollectingInfo] = useState(false);
+  const [waitingForTidalVolumeResponse, setWaitingForTidalVolumeResponse] = useState(false);
+  const [waitingForTidalVolumeFactor, setWaitingForTidalVolumeFactor] = useState(false);
+  const [tidalVolumeResult, setTidalVolumeResult] = useState<number | null>(null);
   const { speak, isSpeaking } = useSpeechSynthesis();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleVoiceCommand = async (command: string) => {
     console.log("Comando recibido:", command);
+    
+    // Check if user is responding to tidal volume question
+    if (waitingForTidalVolumeResponse) {
+      setWaitingForTidalVolumeResponse(false);
+      if (command.toLowerCase().includes('sí') || command.toLowerCase().includes('si') || command.toLowerCase().includes('yes')) {
+        setWaitingForTidalVolumeFactor(true);
+        speak("Dime el factor multiplicador entre 4 y 10 mililitros por kilogramo.", {
+          onEnd: () => {
+            setIsListening(true);
+          }
+        });
+      } else {
+        setWaitingForResponse(true);
+        speak("¿Quieres que te muestre la fórmula y el resultado?", {
+          onEnd: () => {
+            setIsListening(true);
+          }
+        });
+      }
+      return;
+    }
+
+    // Check if user is providing tidal volume factor
+    if (waitingForTidalVolumeFactor) {
+      setWaitingForTidalVolumeFactor(false);
+      const factor = parseFloat(command.replace(/[^\d.,]/g, '').replace(',', '.'));
+      
+      if (isNaN(factor) || factor < 4 || factor > 10) {
+        speak("Lo siento, solo estoy programada para calcular el Volumen Corriente con valores entre 4 y 10 mililitros por peso.", {
+          onEnd: () => {
+            setWaitingForTidalVolumeResponse(true);
+            setIsListening(true);
+          }
+        });
+        return;
+      }
+      
+      if (currentResult) {
+        const tidalVolume = Math.round(currentResult.result * factor);
+        setTidalVolumeResult(tidalVolume);
+        speak(`El Volumen Tidal sería ${tidalVolume} mililitros. ¿Quieres que te muestre la fórmula y el resultado?`, {
+          onEnd: () => {
+            setWaitingForResponse(true);
+            setIsListening(true);
+          }
+        });
+      }
+      return;
+    }
     
     // Check if user is responding to "¿quieres ver el cálculo?"
     if (waitingForResponse) {
@@ -38,6 +90,7 @@ const Calculator = () => {
       } else {
         setCurrentResult(null);
         setShowFormula(false);
+        setTidalVolumeResult(null);
         speak("De acuerdo, ¿en qué más puedo ayudarte?");
       }
       return;
@@ -87,15 +140,40 @@ const Calculator = () => {
         setPartialCommand(null);
         setCollectingInfo(false);
         
+        // Check if this is a weight calculation for tidal volume suggestion
+        const calculationType = partialCommand?.type || (result.formula.includes('Peso ideal') ? 'pesoIdeal' : result.formula.includes('Peso predicho') ? 'pesoPredicho' : '');
+        const isWeightCalculation = calculationType === 'pesoIdeal' || calculationType === 'pesoPredicho';
+        
         // Improve pronunciation of units
-        const unitPronunciation = result.unit === 'mmHg' ? 'milímetros de mercurio' : result.unit;
-        const response = `El resultado es ${result.result} ${unitPronunciation}. ¿Quieres ver el cálculo y la fórmula?`;
-        speak(response, { 
-          onEnd: () => {
-            setWaitingForResponse(true);
-            setIsListening(true);
-          }
-        });
+        let unitPronunciation = result.unit;
+        if (result.unit === 'mmHg') {
+          unitPronunciation = 'milímetros de mercurio';
+        } else if (result.unit === 'kg') {
+          unitPronunciation = 'kilogramos';
+        }
+        
+        let response = `El resultado es ${result.result} ${unitPronunciation}`;
+        
+        // Add tidal volume suggestion for weight calculations
+        if (isWeightCalculation) {
+          const tidalVolume = Math.round(result.result * 6);
+          response += `. Si lo multiplicas por 6 mililitros tendrías un Volumen Tidal de ${tidalVolume} mililitros. ¿Quieres que calcule el Volumen Tidal usando otro factor multiplicador?`;
+          
+          speak(response, { 
+            onEnd: () => {
+              setWaitingForTidalVolumeResponse(true);
+              setIsListening(true);
+            }
+          });
+        } else {
+          response += '. ¿Quieres ver el cálculo y la fórmula?';
+          speak(response, { 
+            onEnd: () => {
+              setWaitingForResponse(true);
+              setIsListening(true);
+            }
+          });
+        }
         
         toast({
           title: "Cálculo completado",
@@ -121,6 +199,9 @@ const Calculator = () => {
     setWaitingForResponse(false);
     setPartialCommand(null);
     setCollectingInfo(false);
+    setWaitingForTidalVolumeResponse(false);
+    setWaitingForTidalVolumeFactor(false);
+    setTidalVolumeResult(null);
     speak("¿Qué cálculo médico necesitas realizar?");
   };
 
@@ -188,10 +269,18 @@ const Calculator = () => {
               isSpeaking={isSpeaking}
             />
             
-            {waitingForResponse && (
+            {(waitingForResponse || waitingForTidalVolumeResponse) && (
               <div className="bg-muted rounded-lg p-4 text-center max-w-md">
                 <p className="text-sm text-muted-foreground">
                   Esperando tu respuesta... Di "sí" o "no"
+                </p>
+              </div>
+            )}
+            
+            {waitingForTidalVolumeFactor && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center max-w-md">
+                <p className="text-sm text-blue-600 font-medium">
+                  Esperando factor multiplicador (4-10 mL/kg)
                 </p>
               </div>
             )}
@@ -229,6 +318,11 @@ const Calculator = () => {
                 <div className="text-3xl font-bold">
                   {currentResult.result} {currentResult.unit}
                 </div>
+                {tidalVolumeResult && (
+                  <div className="text-lg mt-2 opacity-90">
+                    Volumen Tidal: {tidalVolumeResult} mL
+                  </div>
+                )}
                 {currentResult.interpretation && (
                   <div className="text-sm mt-2 opacity-90">
                     {currentResult.interpretation}
