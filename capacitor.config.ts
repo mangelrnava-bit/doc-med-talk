@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.80b807c4f11b40c7881e069bbe21eeb5',
+  appId: 'com.medicacalc.voice',
   appName: 'medi-calc-voice',
   webDir: 'dist',
   server: {
