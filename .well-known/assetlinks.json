@@ -1,0 +1,9 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.mcv.medicalcvoice",
+    "sha256_cert_fingerprints":
+    ["B3:2A:86:F4:4B:D9:0D:B2:43:D7:6C:A5:C3:12:75:D4:F9:88:F0:59:F1:69:18:C3:5B:54:51:2E:FD:43:F6:55"]
+  }
+}]
