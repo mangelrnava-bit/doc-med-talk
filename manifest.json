@@ -1,22 +1,23 @@
 {
-  "name": "Medi Calc Voice",
-  "short_name": "MCV",
-  "description": "Medicalc Voice es una calculadora de formulas médicas con entrada por voz.",
+  "name": "MediCalc Voice",
+  "short_name": "MediCalc",
+  "description": "Calculadora médica inteligente con reconocimiento de voz en español",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
+  "orientation": "portrait",
+  "categories": ["medical", "health", "productivity"],
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "/medicalc-icon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "/medicalc-icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }
   ]
 }
-Agregando manifest.json"
