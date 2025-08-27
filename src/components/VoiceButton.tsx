@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Capacitor } from "@capacitor/core";
+import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 
 interface VoiceButtonProps {
   onCommand: (command: string) => void;
@@ -12,23 +14,54 @@ interface VoiceButtonProps {
 
 const VoiceButton = ({ onCommand, isListening, onListeningChange, isSpeaking = false }: VoiceButtonProps) => {
   const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [isNative, setIsNative] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastResultRef = useRef<string>('');
 
+  // Initialize speech recognition based on platform
   useEffect(() => {
+    const platform = Capacitor.getPlatform();
+    const isNativePlatform = platform === 'ios' || platform === 'android';
+    setIsNative(isNativePlatform);
+
+    if (isNativePlatform) {
+      // Native platform setup
+      initializeNativeSpeechRecognition();
+    } else {
+      // Web platform setup
+      initializeWebSpeechRecognition();
+    }
+  }, []);
+
+  const initializeNativeSpeechRecognition = async () => {
+    try {
+      // Check if speech recognition is available
+      const available = await SpeechRecognition.available();
+      if (available) {
+        // Request permissions
+        const permissions = await SpeechRecognition.requestPermissions();
+        if (permissions.speechRecognition === 'granted') {
+          setIsSupported(true);
+        }
+      }
+    } catch (error) {
+      console.error('Native speech recognition setup failed:', error);
+    }
+  };
+
+  const initializeWebSpeechRecognition = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       setIsSupported(true);
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+      const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognitionClass();
       
       const recognition = recognitionRef.current;
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'es-ES';
 
-      let silenceTimer: NodeJS.Timeout;
-      let lastResult = '';
-
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: any) => {
         let finalTranscript = '';
         let interimTranscript = '';
 
@@ -42,15 +75,18 @@ const VoiceButton = ({ onCommand, isListening, onListeningChange, isSpeaking = f
         }
 
         // Clear existing silence timer
-        clearTimeout(silenceTimer);
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
 
         // If we have a final result, process it
-        if (finalTranscript && finalTranscript !== lastResult) {
-          lastResult = finalTranscript;
+        if (finalTranscript && finalTranscript !== lastResultRef.current) {
+          lastResultRef.current = finalTranscript;
           onCommand(finalTranscript.toLowerCase());
           
           // Set a longer timeout for continuous listening (8 seconds)
-          silenceTimer = setTimeout(() => {
+          silenceTimerRef.current = setTimeout(() => {
             if (recognitionRef.current && isListening) {
               try {
                 recognitionRef.current.stop();
@@ -61,7 +97,7 @@ const VoiceButton = ({ onCommand, isListening, onListeningChange, isSpeaking = f
           }, 8000);
         } else if (interimTranscript) {
           // Reset silence timer for interim results (user is still speaking)
-          silenceTimer = setTimeout(() => {
+          silenceTimerRef.current = setTimeout(() => {
             if (recognitionRef.current && isListening) {
               try {
                 recognitionRef.current.stop();
@@ -74,64 +110,136 @@ const VoiceButton = ({ onCommand, isListening, onListeningChange, isSpeaking = f
       };
 
       recognition.onend = () => {
-        clearTimeout(silenceTimer);
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
         onListeningChange(false);
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
-        clearTimeout(silenceTimer);
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
         if (event.error !== 'no-speech') {
           onListeningChange(false);
         }
       };
-
-      return () => {
-        clearTimeout(silenceTimer);
-      };
     }
-  }, [onCommand, onListeningChange, isListening]);
+  };
+
+  const startNativeListening = async () => {
+    try {
+      const result = await SpeechRecognition.start({
+        language: 'es-ES',
+        maxResults: 1,
+        prompt: 'Di tu comando médico',
+        partialResults: true,
+        popup: false
+      });
+
+      // Handle final results from the promise
+      if (result && result.matches && result.matches.length > 0) {
+        const transcript = result.matches[0];
+        if (transcript && transcript !== lastResultRef.current) {
+          lastResultRef.current = transcript;
+          onCommand(transcript.toLowerCase());
+        }
+      }
+
+      // Listen for partial results while speaking
+      SpeechRecognition.addListener('partialResults', (data) => {
+        console.log('Partial results:', data.matches);
+        // Handle interim results if needed
+      });
+
+      onListeningChange(true);
+    } catch (error) {
+      console.error('Failed to start native speech recognition:', error);
+      onListeningChange(false);
+    }
+  };
+
+  const stopNativeListening = async () => {
+    try {
+      await SpeechRecognition.stop();
+      SpeechRecognition.removeAllListeners();
+      onListeningChange(false);
+    } catch (error) {
+      console.error('Failed to stop native speech recognition:', error);
+    }
+  };
 
   // Auto-start/stop recognition based on isListening prop and isSpeaking state
   useEffect(() => {
-    if (!recognitionRef.current || isSpeaking) return;
+    if (isSpeaking) return;
 
     if (isListening) {
-      try {
-        recognitionRef.current.start();
-      } catch (error) {
-        console.log('Recognition already active or failed to start');
+      if (isNative) {
+        startNativeListening();
+      } else if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (error) {
+          console.log('Recognition already active or failed to start');
+        }
       }
     } else {
-      try {
-        recognitionRef.current.stop();
-      } catch (error) {
-        console.log('Recognition already stopped or failed to stop');
+      if (isNative) {
+        stopNativeListening();
+      } else if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.log('Recognition already stopped or failed to stop');
+        }
       }
     }
-  }, [isListening, isSpeaking]);
+  }, [isListening, isSpeaking, isNative]);
 
   const startListening = () => {
-    if (recognitionRef.current && !isListening && !isSpeaking) {
-      try {
-        recognitionRef.current.start();
-        onListeningChange(true);
-      } catch (error) {
-        console.log('Failed to start recognition:', error);
+    if (!isListening && !isSpeaking) {
+      if (isNative) {
+        startNativeListening();
+      } else if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+          onListeningChange(true);
+        } catch (error) {
+          console.log('Failed to start recognition:', error);
+        }
       }
     }
   };
 
   const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      try {
-        recognitionRef.current.stop();
-        onListeningChange(false);
-      } catch (error) {
-        console.log('Failed to stop recognition:', error);
+    if (isListening) {
+      if (isNative) {
+        stopNativeListening();
+      } else if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+          onListeningChange(false);
+        } catch (error) {
+          console.log('Failed to stop recognition:', error);
+        }
       }
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      if (isNative) {
+        SpeechRecognition.removeAllListeners();
+      }
+    };
+  }, [isNative]);
 
   if (!isSupported) {
     return (
