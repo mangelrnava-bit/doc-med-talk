@@ -122,5 +122,28 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    /* Optimizaciones para móvil */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: contain;
+  }
+  
+  /* Mejora de área de toque para botones */
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Evitar zoom en inputs en iOS */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  
+  /* Mejoras para scroll suave */
+  * {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 }

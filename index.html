@@ -2,7 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- PWA Meta Tags para Android -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="MediCalc Voice">
+    <meta name="theme-color" content="#0d7377">
+    
+    <!-- Optimización para pantallas móviles -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
     <title>MediCalc Voice - Calculadora Médica con Reconocimiento de Voz</title>
     <meta name="description" content="Calculadora médica inteligente con reconocimiento de voz en español. Calcula peso ideal, TFG, fórmula de Winter y más, solo dictando los valores." />
     <meta name="author" content="MediCalc Voice" />
@@ -15,6 +24,9 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
   </head>
 
   <body>
